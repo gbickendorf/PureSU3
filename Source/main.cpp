@@ -20,40 +20,44 @@ using namespace SUN;
 
 int main()
 {
+	char name[100];
+	int T = 16;
+	int L = 16;
+	vector<int> autocorr{1,1,2,2,3,5,10,20,45,95,154,203};
 	vector<string> names;
 	vector<LatticeSettings> settings;
 	vector<SUNLattice*> lats;
-	names.push_back("DAT/wilson1.dat");
-	names.push_back("DAT/wilson2.dat");
-	names.push_back("DAT/wilson3.dat");
-	names.push_back("DAT/wilson4.dat");
-	names.push_back("DAT/wilson5.dat");
-	names.push_back("DAT/wilson6.dat");
-	names.push_back("DAT/wilson7.dat");
-	names.push_back("DAT/wilson8.dat");
-	settings.push_back(LatticeSettings(1.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(2.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(3.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(4.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(5.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(6.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(7.0,6,6,StartCondition::Hot));
-	settings.push_back(LatticeSettings(8.0,6,6,StartCondition::Hot));
-	//SUNLattice lat = SUNLattice(settings[0]);
-	for (int i = 0; i < 8; i++)
+	vector<pair<int,int>> prototype;
+	prototype.push_back(pair<int,int>(1,1));
+	prototype.push_back(pair<int,int>(1,2));
+	prototype.push_back(pair<int,int>(2,2));
+	prototype.push_back(pair<int,int>(2,3));
+	prototype.push_back(pair<int,int>(3,3));
+	prototype.push_back(pair<int,int>(3,4));
+	prototype.push_back(pair<int,int>(4,4));
+	settings.push_back(LatticeSettings(1.0,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(1.5,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(2.0,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(2.5,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.0,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.5,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(4.0,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(4.5,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(5.0,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(5.4,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(5.7,L,T,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.5,L,T,StartCondition::Hot));
+	for (int i = 0; i < 12; i++)
 	{
+		
+		sprintf(name,"DAT/Wilson%i.dat",i);
 		lats.push_back(new SUNLattice(settings[i]));
+		names.push_back(name);
 	}
 	#pragma omp parallel for
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < 12; i++)
 	{
-		lats[i]->Run(names[i].c_str());
+		lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i], 10000, prototype);
 	}
-	
-	
-	//lats.push_back(SUNLattice( LatticeSettings(3.0,6,6,StartCondition::Hot)));
-	//LatticeSettings set = LatticeSettings(3.0,6,6,StartCondition::Hot);
-	//SUNLattice lat(set);
-	//lat.Run("DAT/wilson1.dat");
 	return 0;
 }

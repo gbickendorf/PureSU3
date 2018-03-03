@@ -17,8 +17,6 @@
 				for (int y = 0; y < settings.s_LattSize; y++)\
 				for (int x = 0; x < settings.s_LattSize; x++)\
 				for (int t = 0; t < settings.t_LattSize; t++)
-#define MATRIX 	matrix3
-#define GETUNITARY Random::GetUnitaryMatrix3
 #define GROUPDIM 3.0
 using namespace std;
 
@@ -30,10 +28,11 @@ class SUNLattice
 public:
 	SUNLattice(LatticeSettings& Settings);
 	~SUNLattice();
-	void Run(const char * filename);
+	void Run(const char * filename, int autocorrTime);
 	int CoordinatesToIndex(int t, int x, int y, int z, int mu);
 	int LatticePositionToIndex(LatticePosition pos, int mu);
 	LatticePosition IndexToLatticePosition(int n, int * mu);
+	void WilsonLoopRun(const char * filename,int autocorrTime, int N, const vector<pair<int,int>> Loops);
 	
 private:
 	LatticeSettings& settings;
@@ -47,7 +46,6 @@ private:
 	void MonteCarloStep();
 	void MonteCarloUpdate();
 	double WilsonLoop(int a, int b);
-	void WilsonLoopRun(const char * filename);
 	void GenQuarkPot();
 	Complex PlaqPlaqCorrelation(int tdiff);
 	Complex PolyakovLoop(int x, int y, int z);
@@ -59,6 +57,8 @@ private:
 	void AvgActionPerPlaqueRun();
 	void SaveLattice();
 	void LoadLattice();	
+	int AutoCorrelationWilson(int N, int a, int b);
+	void Thermalize(int Ntherm, int verbose);
 	
 //MultiAlg
 	int ThreeCoordinatesToIndex(int x, int y, int z, int timeSlice, int direction, int SliceCount);

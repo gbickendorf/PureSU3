@@ -89,7 +89,7 @@ matrix3	SUNLattice::Staple(LatticePosition n, int mu)
 	
 }
 
-double SUNLattice::LocalSChange(LatticePosition n, int mu, MATRIX& trial)
+double SUNLattice::LocalSChange(LatticePosition n, int mu, matrix3& trial)
 {
 	return real(((GetLink(n,mu)-trial)*Staple(n,mu)).trace())*settings.beta/GROUPDIM;
 }
@@ -98,7 +98,7 @@ void SUNLattice::MonteCarloStep()
 {
 	LatticePosition pos = random->GetLatticePosition();
 	int mu = random->GetInt(4);
-	MATRIX trial = random->GetUnitaryMatrix3();
+	matrix3 trial = random->GetUnitaryMatrix3();
 	if(random->GetDouble()<exp(-LocalSChange(pos,mu,trial)))
 	{
 		acc++;
@@ -120,7 +120,7 @@ void SUNLattice::MonteCarloUpdate()
 	}
 }
 
-MATRIX SUNLattice::Plaquette(LatticePosition n, int mu, int nu, int a, int b)
+matrix3 SUNLattice::Plaquette(LatticePosition n, int mu, int nu, int a, int b)
 {
 	matrix3 xSide(MatrixInitType::Unit);
 	matrix3 ySide(MatrixInitType::Unit);
@@ -145,7 +145,7 @@ MATRIX SUNLattice::Plaquette(LatticePosition n, int mu, int nu, int a, int b)
 double SUNLattice::WilsonLoop(int a, int b)
 {
 	double res = 0.0;
-	int count = 0;
+	//int count = 0;
 	//#pragma omp parallel for reduction(+ : res , count) collapse(4)
 	forlatt
 	{
@@ -156,12 +156,12 @@ double SUNLattice::WilsonLoop(int a, int b)
 			{
 				if(nu==mu)
 					continue;
-				count++;
+				//count++;
 				res+=real(Plaquette(pos,mu,nu,a,b).trace());
 			}					
 		}		
 	}
-	return res /(GROUPDIM*count);
+	return res /(GROUPDIM*settings.Volume()*12);
 }
 
 Complex SUNLattice::PlaqPlaqCorrelation(int tdiff)
@@ -274,73 +274,36 @@ void SUNLattice::AvgActionPerPlaqueRun()
 {
 }
 
-void SUNLattice::WilsonLoopRun(const char * filename)
+void SUNLattice::WilsonLoopRun(const char * filename,int autocorrTime, int N, const vector<pair<int,int>> Loops)
 {
-	double res;
 	FILE * f = fopen(filename,"a");
 	fprintf(f,"## Beta : %f	L : %i	T : %i\n", settings.beta,settings.s_LattSize,settings.t_LattSize);
+	fprintf(f,"i");
+	for (int i = 0; i < static_cast<int>(Loops.size()); i++)
+	{
+		fprintf(f,"	%ix%i",Loops[i].first, Loops[i].second);
+	}
+	fprintf(f,"\n");
 	fclose(f);
 	
-	for (int i = 0; i < 1000; i++)
-	{
-		SUNLattice::MonteCarloUpdate();
-		
-		//printf("Thermalising : %i / %i\n", i+1, 1000);
-		
-	}
+	Thermalize(3000,0);
 	
-	for (int i = 0; i < 100000; i++)
-	{
-		//if(i%1000==0)
-		//	printf("%i\n",i);
-		SUNLattice::MonteCarloUpdate();
-		f = fopen(filename,"a");
-		res=WilsonLoop(1,1);
-		fprintf(f,"%i	%f\n",i,res);
-		fclose(f);
-	}
-	return;
-	
-	
-	int thermN = 0;
-	int N = 2000;
-	for (int i = 0; i < thermN; i++)
-	{
-		SUNLattice::MonteCarloUpdate();
-		printf("Thermalising : %i / %i\n", i+1, thermN);
-	}
 	for (int i = 0; i < N; i++)
 	{
-		SUNLattice::MonteCarloUpdate();
-		printf("%f	%f\n",SUNLattice::WilsonLoop(1,1),SUNLattice::WilsonLoop(2,2));
+		Thermalize(autocorrTime,0);
+		f = fopen(filename,"a");
+		fprintf(f,"\n%i",i);
+		for (int i = 0; i < static_cast<int>(Loops.size()); i++)
+		{
+			fprintf(f,"	%f",WilsonLoop(Loops[i].first, Loops[i].second));
+		}
+		fclose(f);
 	}
 }
 
 void SUNLattice::GenQuarkPot()
 {
-	int maxsize = settings.s_LattSize;
-	int thermN = 2000;
-	int N = 2000;
-	for (int i = 0; i < thermN; i++)
-	{
-		SUNLattice::MonteCarloUpdate();
-		fprintf( stderr,"#Thermalising : %i / %i\n", i+1, thermN);
-	}
-	fprintf( stdout,"#");
-	for (int x = 1; x < maxsize; x++)
-			fprintf( stdout,"%i	",x);
-	fprintf( stdout,"\n");
-	
-	for (int i = 0; i < N; i++)
-	{
-		//fprintf( stdout,"%i	",i);
-		SUNLattice::MonteCarloUpdate();
-		for (int x = 1; x < maxsize; x++)
-				fprintf( stdout,"%f	",SUNLattice::WilsonLoop(1,x));
-		
-		
-		fprintf( stdout,"\n");
-	}
+
 }
 
 void SUNLattice::PlaqPlaqRun()
@@ -768,11 +731,86 @@ void SUNLattice::MultiRun2()
 	
 }
 */
-void SUNLattice::Run(const char * filename)
+
+void SUNLattice::Thermalize(int Ntherm, int verbose)
 {
-	//TimeSiliceUpdate(0,2);
-	WilsonLoopRun(filename);
-	//printf("%f",real(SUNLattice::PolyakovLoop(1,1,1)));
+	for (int i = 0; i < Ntherm; i++)
+	{
+		SUNLattice::MonteCarloUpdate();
+		if(verbose)
+		{
+			fprintf(stdout, "\033[2J\033[0;1f");
+			printf("Thermalising : %i / %i\n", i+1, Ntherm);
+		}
+	}
+	
+}
+
+int SUNLattice::AutoCorrelationWilson(int N, int a, int b)
+{
+	vector<double> rho;
+	vector<vector<double>>autocorrInitialState(settings.Volume()*4,vector<double>(4));
+	double autocorrInitialAVG;
+	vector<double>autocorrFinalState(settings.Volume()*4);
+	double autocorrFinalAVG;
+	double C0,C1;
+	C0=0.0;
+	forlatt
+	{
+		LatticePosition pos(t,x,y,z,settings);
+		for (int mu = 0; mu < 4; mu++)
+		{
+			for (int nu = 0; nu < 4; nu++)
+			{
+				if(nu==mu)
+					continue;
+				autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]=real(Plaquette(pos,mu,nu,a,b).trace())/3;
+				C0+=autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]*autocorrInitialState[LatticePositionToIndex(pos,mu)][nu];
+			}			
+		}		
+	}
+	C0/=settings.Volume()*12;
+	autocorrInitialAVG=WilsonLoop(a,b);
+	C0-=autocorrInitialAVG*autocorrInitialAVG;
+	for (int i = 0; i < N ; i++)
+	{
+		for (int j = 0; j < 1; j++)
+		{
+			SUNLattice::MonteCarloUpdate();
+		}
+		
+		C1=0.0;
+		forlatt
+		{
+			LatticePosition pos(t,x,y,z,settings);
+			for (int mu = 0; mu < 4; mu++)
+			{
+				for (int nu = 0; nu < 4; nu++)
+				{
+					if(nu==mu)
+						continue;
+					C1+=autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]*real(Plaquette(pos,mu,nu,a,b).trace())/3;
+				}
+			}		
+		}
+		C1/=settings.Volume()*12;
+		autocorrFinalAVG=WilsonLoop(a,b);
+		C1-=autocorrInitialAVG*autocorrFinalAVG;
+		rho.push_back(C1/C0);
+		printf("%i	%f\n", i, C1/C0);		
+	}
+	double t_int=0.5;
+	for (int i = 0; i < N; i++)
+	{
+		t_int += rho[i];
+	}
+	
+	return (int)t_int +1;
+}
+void SUNLattice::Run(const char * filename,int autocorrTime)
+{
+	Thermalize(10000,0);
+	printf("GARBAGE	%s	%i",filename,autocorrTime);
 	return;
 }
 }
