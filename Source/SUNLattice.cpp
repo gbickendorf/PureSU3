@@ -1,4 +1,5 @@
 #include "SUNLattice.h"
+#define nIMPROVED
 
 namespace SUN
 {	
@@ -76,6 +77,7 @@ matrix3 SUNLattice::GetLink(LatticePosition pos, int mu)
 matrix3	SUNLattice::Staple(LatticePosition n, int mu)
 {
 	matrix3 A= matrix3(MatrixInitType::Zero);
+	matrix3 B= matrix3(MatrixInitType::Zero);
 	for (int nu = 0; nu < 4; nu++)
 	{
 		if(nu==mu)
@@ -83,7 +85,14 @@ matrix3	SUNLattice::Staple(LatticePosition n, int mu)
 		LatticePosition pos = n+Basis[mu];
 		A=A	+GetLink(n+Basis[mu],nu)*(GetLink(n+Basis[nu],mu).dagger())*(GetLink(n,nu).dagger()) \
 			+(GetLink(pos-Basis[nu],nu).dagger())*(GetLink(n-Basis[nu],mu).dagger())*GetLink(n-Basis[nu],nu);
-		
+		#ifdef IMPROVED
+		B = B +GetLink(n+Basis[mu],mu)*GetLink(n+Basis[mu]*2,nu)*(GetLink(n+(Basis[mu]+Basis[nu]),mu).dagger())*(GetLink(n+Basis[nu],mu).dagger())*(GetLink(n,nu).dagger()) \
+			+GetLink(n+Basis[mu],nu)*(GetLink(n+Basis[nu],mu).dagger())*(GetLink(n+(Basis[nu]-Basis[mu]),mu).dagger())*(GetLink(n-Basis[mu],nu).dagger())*GetLink(n-Basis[mu],mu)\
+			+GetLink(n+Basis[mu],nu)*GetLink(n+(Basis[mu]+Basis[nu]),nu)*(GetLink(n+Basis[mu]*2,mu).dagger())*(GetLink(n+Basis[nu],nu).dagger())*(GetLink(n,nu).dagger())\
+			+GetLink(n+Basis[mu],mu)*(GetLink(n+(Basis[mu]*2-Basis[nu]),nu).dagger())*(GetLink(n+(Basis[mu]-Basis[nu]),mu).dagger())*(GetLink(n-Basis[nu],mu).dagger())*GetLink(n-Basis[nu],nu) \
+			+(GetLink(n+(Basis[mu]-Basis[nu]),nu).dagger())*(GetLink(n-Basis[nu],mu).dagger())*(GetLink(n-(Basis[nu]+Basis[mu]),mu).dagger())*GetLink(n-(Basis[mu]+Basis[nu]),nu)*GetLink(n-Basis[mu],mu)\
+			+(GetLink(n+(Basis[mu]-Basis[nu]),nu).dagger())*(GetLink(n+(Basis[mu]-Basis[nu]*2),nu).dagger())*(GetLink(n+Basis[mu]*2,mu).dagger())*GetLink(n-Basis[nu]*2,nu)*GetLink(n-Basis[nu],nu);
+		#endif
 	}
 	return A;
 	
@@ -91,7 +100,7 @@ matrix3	SUNLattice::Staple(LatticePosition n, int mu)
 
 double SUNLattice::LocalSChange(LatticePosition n, int mu, matrix3& trial)
 {
-	return real(((GetLink(n,mu)-trial)*Staple(n,mu)).trace())*settings.beta/GROUPDIM;
+	return real(((GetLink(n,mu)-trial)*Staple(n,mu)).trace())*settings.beta/3.0;
 }
 
 void SUNLattice::MonteCarloStep()
@@ -286,7 +295,7 @@ void SUNLattice::WilsonLoopRun(const char * filename,int autocorrTime, int N, co
 	fprintf(f,"\n");
 	fclose(f);
 	
-	Thermalize(3000,0);
+	Thermalize(20000,0);
 	
 	for (int i = 0; i < N; i++)
 	{
@@ -329,6 +338,93 @@ void SUNLattice::PlaqPlaqRun()
 		printf("\n");
 	}
 }
+
+void SUNLattice::Thermalize(int Ntherm, int verbose)
+{
+	for (int i = 0; i < Ntherm; i++)
+	{
+		SUNLattice::MonteCarloUpdate();
+		if(verbose)
+		{
+			fprintf(stdout, "\033[2J\033[0;1f");
+			printf("Thermalising : %i / %i\n", i+1, Ntherm);
+		}
+	}
+	
+}
+
+int SUNLattice::AutoCorrelationWilson(int N, int a, int b)
+{
+	vector<double> rho;
+	vector<vector<double>>autocorrInitialState(settings.Volume()*4,vector<double>(4));
+	double autocorrInitialAVG;
+	vector<double>autocorrFinalState(settings.Volume()*4);
+	double autocorrFinalAVG;
+	double C0,C1;
+	C0=0.0;
+	forlatt
+	{
+		LatticePosition pos(t,x,y,z,settings);
+		for (int mu = 0; mu < 4; mu++)
+		{
+			for (int nu = 0; nu < 4; nu++)
+			{
+				if(nu==mu)
+					continue;
+				autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]=real(Plaquette(pos,mu,nu,a,b).trace())/3;
+				C0+=autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]*autocorrInitialState[LatticePositionToIndex(pos,mu)][nu];
+			}			
+		}		
+	}
+	C0/=settings.Volume()*12;
+	autocorrInitialAVG=WilsonLoop(a,b);
+	C0-=autocorrInitialAVG*autocorrInitialAVG;
+	for (int i = 0; i < N ; i++)
+	{
+		for (int j = 0; j < 1; j++)
+		{
+			SUNLattice::MonteCarloUpdate();
+		}
+		
+		C1=0.0;
+		forlatt
+		{
+			LatticePosition pos(t,x,y,z,settings);
+			for (int mu = 0; mu < 4; mu++)
+			{
+				for (int nu = 0; nu < 4; nu++)
+				{
+					if(nu==mu)
+						continue;
+					C1+=autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]*real(Plaquette(pos,mu,nu,a,b).trace())/3;
+				}
+			}		
+		}
+		C1/=settings.Volume()*12;
+		autocorrFinalAVG=WilsonLoop(a,b);
+		C1-=autocorrInitialAVG*autocorrFinalAVG;
+		rho.push_back(C1/C0);
+		//printf("%i	%f\n", i, C1/C0);		
+	}
+	double t_int=0.5;
+	for (int i = 0; i < N; i++)
+	{
+		t_int += rho[i];
+	}
+	
+	return (int)t_int +1;
+}
+void SUNLattice::Run(const char * filename,int autocorrTime)
+{
+	Thermalize(20000,0);
+	printf("## Beta : %2.2f	L : %i	T : %i	%i\n", settings.beta,settings.s_LattSize,settings.t_LattSize,AutoCorrelationWilson(1000,1,1));
+	//Thermalize(20000,0);
+	//printf("%2.2f	%i\n",settings.beta,AutoCorrelationWilson(1000,1,1));
+	return;
+}
+}
+
+
 /*
 void SUNLattice::SaveLattice()
 {
@@ -732,85 +828,4 @@ void SUNLattice::MultiRun2()
 }
 */
 
-void SUNLattice::Thermalize(int Ntherm, int verbose)
-{
-	for (int i = 0; i < Ntherm; i++)
-	{
-		SUNLattice::MonteCarloUpdate();
-		if(verbose)
-		{
-			fprintf(stdout, "\033[2J\033[0;1f");
-			printf("Thermalising : %i / %i\n", i+1, Ntherm);
-		}
-	}
-	
-}
 
-int SUNLattice::AutoCorrelationWilson(int N, int a, int b)
-{
-	vector<double> rho;
-	vector<vector<double>>autocorrInitialState(settings.Volume()*4,vector<double>(4));
-	double autocorrInitialAVG;
-	vector<double>autocorrFinalState(settings.Volume()*4);
-	double autocorrFinalAVG;
-	double C0,C1;
-	C0=0.0;
-	forlatt
-	{
-		LatticePosition pos(t,x,y,z,settings);
-		for (int mu = 0; mu < 4; mu++)
-		{
-			for (int nu = 0; nu < 4; nu++)
-			{
-				if(nu==mu)
-					continue;
-				autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]=real(Plaquette(pos,mu,nu,a,b).trace())/3;
-				C0+=autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]*autocorrInitialState[LatticePositionToIndex(pos,mu)][nu];
-			}			
-		}		
-	}
-	C0/=settings.Volume()*12;
-	autocorrInitialAVG=WilsonLoop(a,b);
-	C0-=autocorrInitialAVG*autocorrInitialAVG;
-	for (int i = 0; i < N ; i++)
-	{
-		for (int j = 0; j < 1; j++)
-		{
-			SUNLattice::MonteCarloUpdate();
-		}
-		
-		C1=0.0;
-		forlatt
-		{
-			LatticePosition pos(t,x,y,z,settings);
-			for (int mu = 0; mu < 4; mu++)
-			{
-				for (int nu = 0; nu < 4; nu++)
-				{
-					if(nu==mu)
-						continue;
-					C1+=autocorrInitialState[LatticePositionToIndex(pos,mu)][nu]*real(Plaquette(pos,mu,nu,a,b).trace())/3;
-				}
-			}		
-		}
-		C1/=settings.Volume()*12;
-		autocorrFinalAVG=WilsonLoop(a,b);
-		C1-=autocorrInitialAVG*autocorrFinalAVG;
-		rho.push_back(C1/C0);
-		printf("%i	%f\n", i, C1/C0);		
-	}
-	double t_int=0.5;
-	for (int i = 0; i < N; i++)
-	{
-		t_int += rho[i];
-	}
-	
-	return (int)t_int +1;
-}
-void SUNLattice::Run(const char * filename,int autocorrTime)
-{
-	Thermalize(10000,0);
-	printf("GARBAGE	%s	%i",filename,autocorrTime);
-	return;
-}
-}

@@ -33,9 +33,8 @@ public:
 	int LatticePositionToIndex(LatticePosition pos, int mu);
 	LatticePosition IndexToLatticePosition(int n, int * mu);
 	void WilsonLoopRun(const char * filename,int autocorrTime, int N, const vector<pair<int,int>> Loops);
-	
-private:
 	LatticeSettings& settings;
+private:
 	int acc, dec;
 	Random* random;
 	matrix3* Lattice;

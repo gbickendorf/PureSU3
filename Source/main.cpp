@@ -17,47 +17,96 @@
 using namespace std;
 using namespace SUN;
 
-
-int main()
+void Debug()
 {
-	char name[100];
-	int T = 16;
-	int L = 16;
-	vector<int> autocorr{1,1,2,2,3,5,10,20,45,95,154,203};
+	LatticeSettings settings(15.0,10,10,StartCondition::Hot);
+	SUNLattice lat(settings);
+	lat.Run("kjasdj",10);
+}
+
+void Diag1()
+{
+		char name[100];
+	int T = 10;
+	int L = 10;
+	vector<int> autocorr{1,1,1,1,1,2,2,3,3,4,7,10,15,25,47,92,184,259,333,401,460,512,567,614,644,674,701,727,738,771,778,797,810,821};
 	vector<string> names;
 	vector<LatticeSettings> settings;
 	vector<SUNLattice*> lats;
 	vector<pair<int,int>> prototype;
 	prototype.push_back(pair<int,int>(1,1));
 	prototype.push_back(pair<int,int>(1,2));
+	prototype.push_back(pair<int,int>(1,3));
+	prototype.push_back(pair<int,int>(1,4));
+	prototype.push_back(pair<int,int>(1,5));
 	prototype.push_back(pair<int,int>(2,2));
 	prototype.push_back(pair<int,int>(2,3));
-	prototype.push_back(pair<int,int>(3,3));
-	prototype.push_back(pair<int,int>(3,4));
-	prototype.push_back(pair<int,int>(4,4));
-	settings.push_back(LatticeSettings(1.0,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(1.5,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(2.0,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(2.5,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(3.0,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(3.5,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(4.0,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(4.5,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(5.0,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(5.4,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(5.7,L,T,StartCondition::Hot));
-	settings.push_back(LatticeSettings(6.5,L,T,StartCondition::Hot));
-	for (int i = 0; i < 12; i++)
+
+	for (int i = 0; i < 34; i++)
 	{
-		
+		LatticeSettings set((i+1)/3.0,L,T,StartCondition::Hot);
+		settings.push_back(set);
+	}
+	for (int i = 0; i < 34; i++)
+	{
 		sprintf(name,"DAT/Wilson%i.dat",i);
 		lats.push_back(new SUNLattice(settings[i]));
 		names.push_back(name);
 	}
-	#pragma omp parallel for
+	#pragma omp parallel for schedule(static,1)
+	for (int i = 0; i < 34; i++)
+	{
+		//WilsonLoopRun(const char * filename,int autocorrTime, int N, const vector<pair<int,int>> Loops)
+		lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i],1000,prototype);
+		printf("%s----Done\n\n",names[i].c_str());
+		//lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i], 10000, prototype);
+	}
+}
+
+void FiniteSize()
+{
+	
+	char name[100];
+	vector<int> autocorr{1,1,1,1,1,2,2,3,3,4,7,10,15,25,47,92,184,259,333,401,460,512,567,614,644,674,701,727,738,771,778,797,810,821};
+	vector<string> names;
+	vector<LatticeSettings> settings;
+	vector<SUNLattice*> lats;
+	vector<pair<int,int>> prototype;
+	prototype.push_back(pair<int,int>(1,1));
+	prototype.push_back(pair<int,int>(1,2));
+	prototype.push_back(pair<int,int>(1,3));
+	prototype.push_back(pair<int,int>(2,2));
+	settings.push_back(LatticeSettings(3.0,4,4,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.0,5,5,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.0,6,6,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.0,7,7,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.0,8,8,StartCondition::Hot));
+	settings.push_back(LatticeSettings(3.0,9,9,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.0,4,4,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.0,5,5,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.0,6,6,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.0,7,7,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.0,8,8,StartCondition::Hot));
+	settings.push_back(LatticeSettings(6.0,9,9,StartCondition::Hot));
 	for (int i = 0; i < 12; i++)
 	{
-		lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i], 10000, prototype);
+		sprintf(name,"DAT/FiniteSize%i.dat",i);
+		lats.push_back(new SUNLattice(settings[i]));
+		names.push_back(name);
 	}
+	
+	#pragma omp parallel for schedule(static,1)
+	for (int i = 0; i < 34; i++)
+	{
+		//WilsonLoopRun(const char * filename,int autocorrTime, int N, const vector<pair<int,int>> Loops)
+		lats[i]->Run(names[i].c_str(),1000);
+		//printf("%s----Done\n\n",names[i].c_str());
+		//lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i], 10000, prototype);
+	}
+}
+
+int main()
+{
+	FiniteSize();
 	return 0;
 }

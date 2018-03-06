@@ -201,3 +201,19 @@ matrix3 operator*(matrix3 m1, matrix3 m2)
 	
 }
 
+matrix3 operator*(Complex c, matrix3 m2)
+{
+	matrix3 prod;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j< 3; j++)
+		{
+			prod.M[i][j]=c*m2.M[i][j];		
+			
+		}		
+		
+	}
+	return prod;
+	
+}
+

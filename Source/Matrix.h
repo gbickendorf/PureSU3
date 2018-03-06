@@ -44,7 +44,7 @@ public:
 	matrix3 dagger();
 	Complex M[3][3];
 };
-
+matrix3 operator*(Complex c, matrix3 m2);
 matrix3 operator*(matrix3 m1, matrix3 m2);
 matrix3 operator+(matrix3 m1, matrix3 m2);
 matrix3 operator-(matrix3 m1, matrix3 m2);
