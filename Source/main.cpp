@@ -67,7 +67,7 @@ void FiniteSize()
 {
 	
 	char name[100];
-	vector<int> autocorr{1,1,1,1,1,2,2,3,3,4,7,10,15,25,47,92,184,259,333,401,460,512,567,614,644,674,701,727,738,771,778,797,810,821};
+	vector<int> autocorr{5,4,5,3,4,3,254,261,269,253,261,265};
 	vector<string> names;
 	vector<LatticeSettings> settings;
 	vector<SUNLattice*> lats;
@@ -76,6 +76,7 @@ void FiniteSize()
 	prototype.push_back(pair<int,int>(1,2));
 	prototype.push_back(pair<int,int>(1,3));
 	prototype.push_back(pair<int,int>(2,2));
+	prototype.push_back(pair<int,int>(2,3));
 	settings.push_back(LatticeSettings(3.0,4,4,StartCondition::Hot));
 	settings.push_back(LatticeSettings(3.0,5,5,StartCondition::Hot));
 	settings.push_back(LatticeSettings(3.0,6,6,StartCondition::Hot));
@@ -90,23 +91,36 @@ void FiniteSize()
 	settings.push_back(LatticeSettings(6.0,9,9,StartCondition::Hot));
 	for (int i = 0; i < 12; i++)
 	{
-		sprintf(name,"DAT/FiniteSize%i.dat",i);
+		sprintf(name,"DAT/FiniteSize/FiniteSize%i.dat",i);
 		lats.push_back(new SUNLattice(settings[i]));
 		names.push_back(name);
 	}
 	
-	#pragma omp parallel for schedule(static,1)
-	for (int i = 0; i < 34; i++)
+	//#pragma omp parallel
+	//{
+	//	lats[5]->Run(names[5].c_str(),1000);
+	//	lats[9]->Run(names[6].c_str(),1000);
+	//	lats[10]->Run(names[7].c_str(),1000);
+	//	lats[11]->Run(names[8].c_str(),1000);
+	//}
+	//return ;
+	#pragma omp parallel for
+	for (int i = 0; i < 12; i++)
 	{
-		//WilsonLoopRun(const char * filename,int autocorrTime, int N, const vector<pair<int,int>> Loops)
-		lats[i]->Run(names[i].c_str(),1000);
-		//printf("%s----Done\n\n",names[i].c_str());
-		//lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i], 10000, prototype);
+		lats[i]->WilsonLoopRun(names[i].c_str(),autocorr[i], 10000, prototype);
+		printf("%s----Done\n\n",names[i].c_str());
 	}
 }
 
+
+void autocorrPlot()
+{
+	LatticeSettings settings(8.0,10,10,StartCondition::Hot);
+	SUNLattice lat(settings);
+	lat.Run("kjasdj",10);
+}
 int main()
 {
-	FiniteSize();
+	autocorrPlot();
 	return 0;
 }

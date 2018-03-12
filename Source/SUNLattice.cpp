@@ -404,22 +404,25 @@ int SUNLattice::AutoCorrelationWilson(int N, int a, int b)
 		autocorrFinalAVG=WilsonLoop(a,b);
 		C1-=autocorrInitialAVG*autocorrFinalAVG;
 		rho.push_back(C1/C0);
+		
 		//printf("%i	%f\n", i, C1/C0);		
 	}
 	double t_int=0.5;
+	FILE * f = fopen("beta8AutoCorr","a");
+	fprintf(f,"## Beta : %f	L : %i	T : %i\n", settings.beta,settings.s_LattSize,settings.t_LattSize);
 	for (int i = 0; i < N; i++)
 	{
+		fprintf(f,"%i	%f\n",i,rho[i]);
 		t_int += rho[i];
 	}
+	fclose(f);
 	
 	return (int)t_int +1;
 }
 void SUNLattice::Run(const char * filename,int autocorrTime)
 {
-	Thermalize(20000,0);
-	printf("## Beta : %2.2f	L : %i	T : %i	%i\n", settings.beta,settings.s_LattSize,settings.t_LattSize,AutoCorrelationWilson(1000,1,1));
-	//Thermalize(20000,0);
-	//printf("%2.2f	%i\n",settings.beta,AutoCorrelationWilson(1000,1,1));
+	Thermalize(20000,1);
+	printf("%2.2f	%i\n",settings.beta,AutoCorrelationWilson(1000,1,1));
 	return;
 }
 }
