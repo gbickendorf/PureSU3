@@ -1,0 +1,3 @@
+/home/gerrit/Documents/Projects/PureSU3/CMakeFiles/rebuild_cache.dir
+/home/gerrit/Documents/Projects/PureSU3/CMakeFiles/edit_cache.dir
+/home/gerrit/Documents/Projects/PureSU3/CMakeFiles/PureSU3.dir
